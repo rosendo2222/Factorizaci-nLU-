@@ -1,205 +1,332 @@
+import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.util.Scanner;
 
-public class FactorizaciónLU {
+ public class FactorizacionMatriz {
+    // Clase para trabajar con fracciones exactas.
 
-    // Clase auxiliar para manejar números racionales (fracciones exactas)
-    static class Fraccion {
-        private final long numerador;
-        private final long denominador;
+    public static class Fraccion {
+        private final BigInteger numerador;
+        private final BigInteger denominador;
 
-        public Fraccion(long numerador, long denominador) {
-            if (denominador == 0) {
-                throw new IllegalArgumentException("El denominador no puede ser cero.");
+        public Fraccion(long numero) {
+            this(BigInteger.valueOf(numero), BigInteger.ONE);
+        }
+
+        public Fraccion(BigInteger numerador, BigInteger denominador) {
+            if (denominador.signum() == 0) {
+                throw new ArithmeticException(
+                        "El denominador no puede ser cero.");
             }
-            if (denominador < 0) {
-                numerador = -numerador;
-                denominador = -denominador;
+
+            if (denominador.signum() < 0) {
+                numerador = numerador.negate();
+                denominador = denominador.negate();
             }
-            long mcd = mcd(Math.abs(numerador), denominador);
-            this.numerador = numerador / mcd;
-            this.denominador = denominador / mcd;
+
+            BigInteger divisor = numerador.gcd(denominador);
+            this.numerador = numerador.divide(divisor);
+            this.denominador = denominador.divide(divisor);
         }
 
         public static Fraccion parseFraccion(String dato) {
             dato = dato.trim();
-            if (dato.contains("/")) {
-                String[] partes = dato.split("/");
-                if (partes.length != 2) throw new NumberFormatException();
-                long num = Long.parseLong(partes[0].trim());
-                long den = Long.parseLong(partes[1].trim());
-                return new Fraccion(num, den);
-            } else if (dato.contains(".")) {
-                String[] partes = dato.split("\\.");
-                long parteEntera = Long.parseLong(partes[0]);
-                long parteDecimal = Long.parseLong(partes[1]);
-                long num = (long) (parteEntera * Math.pow(10, partes[1].length()) + parteDecimal);
-                long den = (long) Math.pow(10, partes[1].length());
-                return new Fraccion(num, den);
-            } else {
-                return new Fraccion(Long.parseLong(dato), 1);
-            }
-        }
 
-        private static long mcd(long a, long b) {
-            return b == 0 ? a : mcd(b, a % b);
+            if (dato.contains("/")) {
+                String[] partes = dato.split("/", -1);
+
+                if (partes.length != 2) {
+                    throw new NumberFormatException(
+                            "Fraccion incorrecta.");
+                }
+
+                return new Fraccion(
+                        new BigInteger(partes[0].trim()),
+                        new BigInteger(partes[1].trim()));
+            }
+
+            BigDecimal decimal = new BigDecimal(dato);
+            BigInteger num = decimal.unscaledValue();
+            int escala = decimal.scale();
+
+            if (escala < 0) {
+                return new Fraccion(
+                        num.multiply(BigInteger.TEN.pow(-escala)),
+                        BigInteger.ONE);
+            }
+
+            return new Fraccion(
+                    num, BigInteger.TEN.pow(escala));
         }
 
         public Fraccion sumar(Fraccion f) {
-            return new Fraccion(this.numerador * f.denominador + f.numerador * this.denominador, this.denominador * f.denominador);
+            return new Fraccion(
+                    numerador.multiply(f.denominador)
+                            .add(f.numerador.multiply(denominador)),
+                    denominador.multiply(f.denominador));
         }
 
         public Fraccion restar(Fraccion f) {
-            return new Fraccion(this.numerador * f.denominador - f.numerador * this.denominador, this.denominador * f.denominador);
+            return new Fraccion(
+                    numerador.multiply(f.denominador)
+                            .subtract(f.numerador.multiply(denominador)),
+                    denominador.multiply(f.denominador));
         }
 
         public Fraccion multiplicar(Fraccion f) {
-            return new Fraccion(this.numerador * f.numerador, this.denominador * f.denominador);
+            return new Fraccion(
+                    numerador.multiply(f.numerador),
+                    denominador.multiply(f.denominador));
         }
 
         public Fraccion dividir(Fraccion f) {
-            return new Fraccion(this.numerador * f.denominador, this.denominador * f.numerador);
+            return new Fraccion(
+                    numerador.multiply(f.denominador),
+                    denominador.multiply(f.numerador));
         }
 
         public boolean esCero() {
-            return this.numerador == 0;
+            return numerador.signum() == 0;
         }
-
         @Override
         public String toString() {
-            if (denominador == 1) return String.valueOf(numerador);
+            if (denominador.equals(BigInteger.ONE)) {
+                return numerador.toString();
+            }
+
             return numerador + "/" + denominador;
         }
     }
 
-    // ============================================
-    // FUNCIÓN PARA INGRESAR NÚMEROS
-    // ============================================
-    public static Fraccion ingresarNumero(Scanner scanner, String mensaje) {
+    // Solicitar numeros al usuario.
+    public static Fraccion ingresarNumero(
+            Scanner scanner, String mensaje) {
+
         while (true) {
             System.out.print(mensaje);
-            String dato = scanner.nextLine().trim();
+            String dato = scanner.nextLine();
+
             try {
                 return Fraccion.parseFraccion(dato);
-            } catch (IllegalArgumentException e) {
-                System.out.println("Error: el denominador no puede ser cero.\n");
-            } catch (Exception e) {
-                System.out.println("\nDato incorrecto.");
-                System.out.println("Ingrese un número entero, decimal o fracción.");
-                System.out.println("Ejemplos: 5, 2.5, 3/4, -7/3\n");
+            } catch (NumberFormatException e) {
+                System.out.println(
+                        "Dato incorrecto. Ejemplos: 5, -2.5, 3/4.");
+            } catch (ArithmeticException e) {
+                System.out.println(e.getMessage());
             }
         }
     }
 
-    // ============================================
-    // FUNCIÓN PARA MOSTRAR MATRICES
-    // ============================================
-    public static void mostrarMatriz(String nombre, Fraccion[][] matriz) {
+    // Mostrar una matriz.
+    public static void mostrarMatriz(
+            String nombre, Fraccion[][] matriz) {
+
         System.out.println("\n" + nombre);
+
         for (Fraccion[] fila : matriz) {
             System.out.print("[ ");
+
             for (Fraccion elemento : fila) {
-                System.out.print(elemento + " ");
+                System.out.printf("%10s ", elemento);
             }
+
             System.out.println("]");
         }
     }
 
-    public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
+    // Eliminar un elemento mediante operaciones por filas.
+    public static void eliminar(
+            Fraccion[][] U, int destino,
+            int origen, Fraccion multiplicador) {
 
-        System.out.println("======================================");
-        System.out.println("   FACTORIZACIÓN LU DE UNA MATRIZ 3x3");
-        System.out.println("           MÉTODO DE DOOLITTLE");
-        System.out.println("======================================");
-        System.out.println();
-        System.out.println("Ejemplos de datos válidos:");
-        System.out.println("Entero:     5");
-        System.out.println("Decimal:    2.5");
-        System.out.println("Fracción:   3/4");
-        System.out.println("Fracción:  -5/2");
-        System.out.println();
+        System.out.println(
+                "F" + (destino + 1) +
+                        " = F" + (destino + 1) +
+                        " - (" + multiplicador + ") * F" +
+                        (origen + 1));
 
-        // ============================================
-        // INGRESAR MATRIZ A
-        // ============================================
-        System.out.println("INGRESE LOS ELEMENTOS DE LA MATRIZ A");
-        System.out.println("--------------------------------------");
+        for (int columna = 0; columna < 3; columna++) {
+            Fraccion anterior = U[destino][columna];
+            Fraccion referencia = U[origen][columna];
 
-        Fraccion[][] A = new Fraccion[3][3];
-        A[0][0] = ingresarNumero(scanner, "Ingrese a11: ");
-        A[0][1] = ingresarNumero(scanner, "Ingrese a12: ");
-        A[0][2] = ingresarNumero(scanner, "Ingrese a13: ");
+            U[destino][columna] = anterior.restar(
+                    multiplicador.multiplicar(referencia));
 
-        A[1][0] = ingresarNumero(scanner, "Ingrese a21: ");
-        A[1][1] = ingresarNumero(scanner, "Ingrese a22: ");
-        A[1][2] = ingresarNumero(scanner, "Ingrese a23: ");
-
-        A[2][0] = ingresarNumero(scanner, "Ingrese a31: ");
-        A[2][1] = ingresarNumero(scanner, "Ingrese a32: ");
-        A[2][2] = ingresarNumero(scanner, "Ingrese a33: ");
-
-        // ============================================
-        // INICIALIZAR L Y U
-        // ============================================
-        Fraccion[][] L = {
-            { new Fraccion(1, 1), new Fraccion(0, 1), new Fraccion(0, 1) },
-            { new Fraccion(0, 1), new Fraccion(1, 1), new Fraccion(0, 1) },
-            { new Fraccion(0, 1), new Fraccion(0, 1), new Fraccion(1, 1) }
-        };
-
-        Fraccion[][] U = {
-            { new Fraccion(0, 1), new Fraccion(0, 1), new Fraccion(0, 1) },
-            { new Fraccion(0, 1), new Fraccion(0, 1), new Fraccion(0, 1) },
-            { new Fraccion(0, 1), new Fraccion(0, 1), new Fraccion(0, 1) }
-        };
-
-        // ============================================
-        // FACTORIZACIÓN LU (DOOLITTLE)
-        // ============================================
-
-        // Primera fila de U
-        U[0][0] = A[0][0];
-        U[0][1] = A[0][1];
-        U[0][2] = A[0][2];
-
-        // Verificar primer pivote
-        if (U[0][0].esCero()) {
-            System.out.println("\nNo se puede realizar la factorización LU.");
-            System.out.println("El primer pivote es cero.");
-        } else {
-            // Primera columna de L
-            L[1][0] = A[1][0].dividir(U[0][0]);
-            L[2][0] = A[2][0].dividir(U[0][0]);
-
-            // Segunda fila de U
-            U[1][1] = A[1][1].restar(L[1][0].multiplicar(U[0][1]));
-            U[1][2] = A[1][2].restar(L[1][0].multiplicar(U[0][2]));
-
-            // Verificar segundo pivote
-            if (U[1][1].esCero()) {
-                System.out.println("\nNo se puede realizar la factorización LU.");
-                System.out.println("El segundo pivote es cero.");
-            } else {
-                // Segunda columna de L
-                L[2][1] = (A[2][1].restar(L[2][0].multiplicar(U[0][1]))).dividir(U[1][1]);
-
-                // Tercera fila de U
-                U[2][2] = A[2][2].restar(L[2][0].multiplicar(U[0][2]))
-                                 .restar(L[2][1].multiplicar(U[1][2]));
-
-                // Mostrar resultados
-                mostrarMatriz("MATRIZ A:", A);
-                mostrarMatriz("MATRIZ L:", L);
-                mostrarMatriz("MATRIZ U:", U);
-
-                System.out.println();
-                System.out.println("======================================");
-                System.out.println("FACTORIZACIÓN:");
-                System.out.println("A = L × U");
-                System.out.println("======================================");
-            }
+            System.out.println(
+                    "Columna " + (columna + 1) + ": " +
+                            anterior + " - (" + multiplicador +
+                            ") * (" + referencia + ") = " +
+                            U[destino][columna]);
         }
 
-        scanner.close();
+        mostrarMatriz(
+                "Matriz despues de la operacion:", U);
     }
-}
+
+     static void main(String[] args) {
+
+        try (Scanner scanner = new Scanner(System.in)) {
+
+            System.out.println(
+                    "========================================");
+            System.out.println(
+                    " FACTORIZACION LU DE UNA MATRIZ 3x3");
+            System.out.println(
+                    " Metodo de Doolittle");
+            System.out.println(
+                    "========================================");
+
+            System.out.println(
+                    "Ingrese los 9 elementos de la matriz.");
+            System.out.println(
+                    "Se aceptan enteros, decimales y fracciones.");
+            System.out.println(
+                    "Ejemplos: 5, -2.5, 3/4\n");
+
+            Fraccion[][] A = new Fraccion[3][3];
+            Fraccion[][] L = new Fraccion[3][3];
+            Fraccion[][] U = new Fraccion[3][3];
+
+            // Ingreso de la matriz A.
+            for (int fila = 0; fila < 3; fila++) {
+                for (int columna = 0; columna < 3; columna++) {
+
+                    A[fila][columna] = ingresarNumero(
+                            scanner,
+                            "Ingrese a" + (fila + 1) +
+                                    (columna + 1) + ": ");
+
+                    U[fila][columna] = A[fila][columna];
+
+                    L[fila][columna] = new Fraccion(
+                            fila == columna ? 1 : 0);
+                }
+            }
+
+            mostrarMatriz("MATRIZ ORIGINAL A:", A);
+
+            // Verificar primer pivote.
+            if (U[0][0].esCero()) {
+                System.out.println(
+                        "El primer pivote es cero.");
+                System.out.println(
+                        "Se necesita pivoteo para continuar.");
+                return;
+            }
+
+            // PASO 1
+            System.out.println(
+                    "\nPASO 1: Anular posicion a21");
+
+            Fraccion m21 = U[1][0].dividir(U[0][0]);
+
+            System.out.println(
+                    "m21 = " + U[1][0] + " / " +
+                            U[0][0] + " = " + m21);
+
+            L[1][0] = m21;
+            eliminar(U, 1, 0, m21);
+
+            // PASO 2
+            System.out.println(
+                    "\nPASO 2: Anular posicion a31");
+
+            Fraccion m31 = U[2][0].dividir(U[0][0]);
+
+            System.out.println(
+                    "m31 = " + U[2][0] + " / " +
+                            U[0][0] + " = " + m31);
+
+            L[2][0] = m31;
+            eliminar(U, 2, 0, m31);
+
+            // Verificar segundo pivote.
+            if (U[1][1].esCero()) {
+                System.out.println(
+                        "El segundo pivote es cero.");
+                System.out.println(
+                        "Se necesita pivoteo para continuar.");
+                return;
+            }
+
+            // PASO 3
+            System.out.println(
+                    "\nPASO 3: Anular posicion a32");
+
+            Fraccion m32 = U[2][1].dividir(U[1][1]);
+
+            System.out.println(
+                    "m32 = " + U[2][1] + " / " +
+                            U[1][1] + " = " + m32);
+
+            L[2][1] = m32;
+            eliminar(U, 2, 1, m32);
+
+            // PASO 4
+            System.out.println(
+                    "\nPASO 4: MATRICES FACTORES");
+
+            mostrarMatriz(
+                    "MATRIZ L (TRIANGULAR INFERIOR):", L);
+
+            mostrarMatriz(
+                    "MATRIZ U (TRIANGULAR SUPERIOR):", U);
+
+            // PASO 5: Comprobacion.
+            System.out.println(
+                    "\nPASO 5: COMPROBACION L * U = A");
+
+            Fraccion[][] resultado = new Fraccion[3][3];
+            boolean coincide = true;
+
+            for (int fila = 0; fila < 3; fila++) {
+                for (int columna = 0; columna < 3; columna++) {
+
+                    Fraccion suma = new Fraccion(0);
+
+                    System.out.print(
+                            "c" + (fila + 1) +
+                                    (columna + 1) + " = ");
+
+                    for (int k = 0; k < 3; k++) {
+                        Fraccion producto =
+                                L[fila][k].multiplicar(
+                                        U[k][columna]);
+
+                        suma = suma.sumar(producto);
+
+                        if (k > 0) {
+                            System.out.print(" + ");
+                        }
+
+                        System.out.print(
+                                "(" + L[fila][k] +
+                                        ") * (" + U[k][columna] + ")");
+                    }
+
+                    resultado[fila][columna] = suma;
+
+                    System.out.println(" = " + suma);
+
+                    if (!suma.restar(
+                            A[fila][columna]).esCero()) {
+                        coincide = false;
+                    }
+                }
+            }
+
+            mostrarMatriz(
+                    "RESULTADO DE L * U:", resultado);
+
+            if (coincide) {
+                System.out.println(
+                        "\nCOMPROBACION CORRECTA:");
+                System.out.println(
+                        "L * U = A (sin redondeos).");
+            } else {
+                System.out.println(
+                        "\nERROR: L * U no coincide con A.");
+            }
+        }
+    }
+ }
